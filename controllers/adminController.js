@@ -158,13 +158,21 @@ exports.login = async (req, res) => {
     );
 
     // ✅ Store token in secure cookie
-    res.cookie("adminToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 60 * 60 * 1000,
-      path: "/",
-    });
+    // res.cookie("adminToken", token, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === "production",
+    //   sameSite: "Strict",
+    //   maxAge: 60 * 60 * 1000,
+    //   path: "/",
+    // });
+          res.cookie("adminToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+        maxAge: 60 * 60 * 1000,
+        path: "/",
+      });
+
 
     res.status(200).json({
       message: `${role.charAt(0).toUpperCase() + role.slice(1)} logged in successfully`,
