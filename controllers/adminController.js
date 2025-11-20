@@ -612,11 +612,62 @@ const authenticateAdminOrReceptionist = async (req, res, next) => {
   }
 };
 
+// exports.login = async (req, res) => {
+//   try {
+//     const { username, password } = req.body;
+//     const routePath = req.originalUrl; // e.g. '/admin/login' or '/receptionist/login'
+
+//     let user = await Admin.findOne({ username });
+//     let role = "admin";
+
+//     if (!user) {
+//       user = await Receptionist.findOne({ username });
+//       role = "receptionist";
+//     }
+
+//     if (!user) return res.status(404).json({ message: "User not found" });
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(401).json({ message: "Invalid password" });
+
+//     // 🚫 Enforce route-based access
+//     if (routePath.includes("/receptionist") && role !== "receptionist") {
+//       return res.status(403).json({ message: "Admins cannot log in here" });
+//     }
+//     if (routePath.includes("/admin") && role !== "admin") {
+//       return res.status(403).json({ message: "Receptionists cannot log in here" });
+//     }
+
+//     const token = jwt.sign(
+//       { id: user._id, username: user.username, role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1h" }
+//     );
+
+//     // ✅ Store token in secure cookie
+//     res.cookie("adminToken", token, {
+//       httpOnly: true,
+//       secure: process.env.NODE_ENV === "production",
+//       sameSite: "Strict",
+//       maxAge: 60 * 60 * 1000,
+//       path: "/",
+//     });
+
+//     res.status(200).json({
+//       message: `${role.charAt(0).toUpperCase() + role.slice(1)} logged in successfully`,
+//       role,
+//     });
+//   } catch (err) {
+//     console.error("Login Error:", err);
+//     res.status(500).json({ message: "Server error", error: err.message });
+//   }
+// };
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    const routePath = req.originalUrl; // e.g. '/admin/login' or '/receptionist/login'
+    const routePath = req.originalUrl; // '/admin/login' or '/receptionist/login'
 
+    // Find admin or receptionist
     let user = await Admin.findOne({ username });
     let role = "admin";
 
@@ -625,12 +676,17 @@ exports.login = async (req, res) => {
       role = "receptionist";
     }
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ message: "Invalid password" });
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
 
-    // 🚫 Enforce route-based access
+    // Route-based access rules
     if (routePath.includes("/receptionist") && role !== "receptionist") {
       return res.status(403).json({ message: "Admins cannot log in here" });
     }
@@ -638,25 +694,29 @@ exports.login = async (req, res) => {
       return res.status(403).json({ message: "Receptionists cannot log in here" });
     }
 
+    // Generate JWT
     const token = jwt.sign(
       { id: user._id, username: user.username, role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // ✅ Store token in secure cookie
+    // ============================================
+    // ⭐ FIXED COOKIE FOR RENDER + VERCEL
+    // ============================================
     res.cookie("adminToken", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 60 * 60 * 1000,
-      path: "/",
+      secure: true,         // Render uses HTTPS
+      sameSite: "None",     // REQUIRED for cross-domain cookies
+      path: "/",            // cookie valid for all routes
+      maxAge: 60 * 60 * 1000, // 1 hour
     });
 
     res.status(200).json({
       message: `${role.charAt(0).toUpperCase() + role.slice(1)} logged in successfully`,
       role,
     });
+
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
