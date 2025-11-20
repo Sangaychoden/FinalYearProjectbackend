@@ -177,14 +177,26 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",                 // local development
-      "https://thim-dorji-frontend-m6uj.vercel.app",
+      "http://localhost:5173",
       "https://thim-dorji-frontend.vercel.app",
-      "https://thim-dorji-frontend-ami1.vercel.app"
+      "https://thim-dorji-frontend-ami1.vercel.app",
+      "https://thim-dorji-frontend-m6uj.vercel.app"
     ],
     credentials: true,
   })
 );
+
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:5173",                 // local development
+//       "https://thim-dorji-frontend-m6uj.vercel.app",
+//       "https://thim-dorji-frontend.vercel.app",
+//       "https://thim-dorji-frontend-ami1.vercel.app"
+//     ],
+//     credentials: true,
+//   })
+// );
 
 // =======================
 // DATABASE CONNECTION
