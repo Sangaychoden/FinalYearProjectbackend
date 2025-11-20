@@ -86,7 +86,7 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5173",               // local React dev
-  "https://your-frontend.onrender.com",  // Replace with your frontend Render URL
+
 ];
 
 app.use(
