@@ -166,13 +166,17 @@ app.use(cookieParser());
 // FIXED CORS FOR RENDER + COOKIES
 // =======================
 const allowedOrigins = [
-  "http://localhost:5173",                        // local development
-  "https://your-frontend.onrender.com",           // <-- replace with actual deployed frontend
+  "http://localhost:5173",
+  // process.env.FRONTEND_URL,
 ];
 
 app.use(
   cors({
-    origin: allowedOrigins,       // <-- simplified, no function
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS: " + origin), false);
+    },
     credentials: true,
   })
 );
@@ -198,12 +202,12 @@ app.use("/facilities", facilitiesRoute);
 app.use("/testimonials", testimonialRoutes);
 app.use("/receptionists", receptionistRoutes);
 
-// Health check route for Render
+// Health check for Render
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Test route
+// Welcome route
 app.get("/", (req, res) => {
   res.send("🚀 Backend running successfully on Render!");
 });
