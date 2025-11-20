@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "thimdorjiresort",
+  "private_key_id": "6bcdac17290bbb72443af88d072ca7ed22d116d4",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC8Wq6Knw4n5tjS\n3yt/c/vcQld+n2ZVybMvR5tHPhhVmE5DF3CA8QmX4SR9pbp2b/NSI7G0MMstVCUt\nEa/Q5XyXSufKrVC6WrLvhtwPrkmZajP7gFSEn+7XREljf6x+I/w3fFZ0Yjlo2K+z\n0YD9iMkzQ+pLLKVgeBhp6T+LO4yfHC2WQHOlZckkiVUmbvjub05QEVnRqEZ5ypOs\nRMWGGKJ2ye/IvqatRRyAzdHhANeDN7W66SLI5dA6HOS1lTAH9BiwnqIC9NNii0cg\n8IJOLXJzr60gZeF2zUShp8CmuLd26qWP4tPLzkf2wXjJGL0vVOgyGSouMpzDF4q1\nHChSkehHAgMBAAECggEADnXp05OtiwuyltHybXkSm5DuVbbYLPrsylL1jW0rghrM\n22LHzOZ0hZgP7KOWIrSqmiJKaNqcJrFAn2qttFyCCb2C+TEAMyZ2eWRBreSEGwan\n0gXCt2Ht/NHtznlFXXPWz824d3v5C18jcitB+3UOeWSb7sSRN8xQl4UET2S1gZuO\n5O8rTl61lEv4gJ1JPcIr1piRWLQz7iEd3v74FBtwjKRZUxoMn8+IYRejJ8wPlhWn\nQUz7zNolc4qyY3WZv301oES+s6lFcW8Z0rX1+ScU5ezCTfhgGkHOLC93+GL9lld/\nfKtOSrQUaMiQHWQguTbJvTpDbUdI9c0DHQfeFRrhOQKBgQDtPOZeq6lqc+52ZQjo\npPD0p967DKNqFAhAPl/1MnSg9/IvJu0fEJLjs9tIhSBK7iO65h9V8VzgApKm8A1y\n2uUB01o0qqPmZE6EUhJV/3+W19xCP47LKUy8Y74O1OcY6s7CDOsfH2TdAvMAzB8b\nBYRgGRfi+BKmy+I6WezIM+/GuQKBgQDLQBZF19/v7Mr2IVe5E9H3N5SxeruC6Lhu\nCJNTl4NOzXtu8piViOVlnnfag9T64bC43kpkkqWX7ng1REwFeJ36eYZRSixJiEvo\n86oqNyuHC/TIYhCaRv6DaKT5Voo2Ga08Dwyeg9eKZyBQQPAP8Z4cyscW8zunDBh+\nuwr9q1em/wKBgGluCB8IgNjbPp2FFyl0q9S+icBsxG7PCj+quLBaRPSIXCvSS8zj\na7Qf6RLYftpt7JkRzdk+03yGCDCCPCfP2bgu+kavkvk/mJk7dASd8FDUC4Gxhz8I\nUp7iYMNsoGs1Zr9cSF1jcUq7Fc1D6Yrzr7mZTUFD594Se65c6lqqoiOZAoGAE1yI\ngqC82VsiPm4QsDW+I6GszXdWk3Ld1sWEW0ssm/4hCwGbHWuMBrEg07UJPdjv/7xV\nM91wXte9pb1azI6f5fNbozTAoUSVjpxfkmPtBpFSASCuWjP3HMeEJ6hhxCOQCA+a\n8SK4DpwiTOLSu4IVwMJkUsBa51/UmYXx1xZSZDsCgYAHSHIesOCqXeoEHtpxGZie\nVmG+orR3HMmiK9qZCCPcUCXlx9kB9yQBBzV+Xg1zybQZRLmGNSQON4SiZQPgpbOh\nQ511a7CMQ8mbRYRl2irARUOByXhDpOU17NT8p9wyQVZmSOz87g76JX13NmNvMIV/\nVxW4mgylPVCj0Xaq1EOYlw==\n-----END PRIVATE KEY-----\n",
+  "client_email": "thimdorjiresort@thimdorjiresort.iam.gserviceaccount.com",
+  "client_id": "115913213445098712760",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/thimdorjiresort%40thimdorjiresort.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
