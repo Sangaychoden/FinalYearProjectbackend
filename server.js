@@ -165,11 +165,22 @@ app.use(cookieParser());
 // =======================
 // ✔ FIXED CORS FOR RENDER + COOKIES
 // =======================
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:5173",          // local frontend
+//       process.env.FRONTEND_URL || ""    // deployed frontend (future)
+//     ],
+//     credentials: true,
+//   })
+// );
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",          // local frontend
-      process.env.FRONTEND_URL || ""    // deployed frontend (future)
+      "http://localhost:5173",                 // local development
+      "https://thim-dorji-frontend-m6uj.vercel.app",
+      "https://thim-dorji-frontend.vercel.app",
+      "https://thim-dorji-frontend-ami1.vercel.app"
     ],
     credentials: true,
   })
