@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { google } = require("googleapis");
-
+const { sendMailWithGmailApi } = require("../utils/gmailSender");
 const OAuth2 = google.auth.OAuth2;
 
 const oauth2Client = new OAuth2(
@@ -249,45 +249,62 @@ exports.createAdminIfNotExists = async (req, res) => {
 };
 
 
-// // ======================================================
-// // 🔄 FORGOT PASSWORD (OTP Email)
-// // ======================================================
-// exports.forgotPassword = async (req, res) => {
-//   try {
-//     const { email } = req.body;
-//     if (!email || email.trim() === "")
-//       return res.status(400).json({ message: "Email is required" });
+// ======================================================
+// 🔄 FIXED FORGOT PASSWORD — Styled Email like changePassword
+// ======================================================
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-//     const admin = await Admin.findOne({ email: email.trim().toLowerCase() });
-//     if (!admin)
-//       return res.status(403).json({ message: "Email not registered as admin" });
+    if (!email || email.trim() === "") {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//     const expiry = new Date(Date.now() + 5 * 60 * 1000);
+    const admin = await Admin.findOne({ email: email.trim().toLowerCase() });
+    if (!admin) {
+      return res.status(403).json({ message: "Email not registered as admin" });
+    }
 
-//     admin.resetOTP = otp;
-//     admin.resetOTPExpiry = expiry;
-//     await admin.save();
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 5 * 60 * 1000);
 
-//     const transporter = nodemailer.createTransport({
-//       service: "gmail",
-//       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-//     });
+    admin.resetOTP = otp;
+    admin.resetOTPExpiry = expiry;
+    await admin.save();
 
-//     const mailOptions = {
-//       from: `"Admin Panel" <${process.env.EMAIL_USER}>`,
-//       to: admin.email,
-//       subject: "Admin Password Reset OTP",
-//       text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
-//     };
+    // Styled HTML email (same style as changePassword)
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
+        <div style="max-width: 500px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
+          <h2 style="color: #006600;">Password Reset OTP</h2>
+          <p>Dear <strong>${admin.username}</strong>,</p>
+          <p>You requested to reset your password. Use the OTP below:</p>
 
-//     await transporter.sendMail(mailOptions);
-//     res.status(200).json({ message: "OTP sent to admin's registered email." });
-//   } catch (err) {
-//     console.error("Forgot Password Error:", err);
-//     res.status(500).json({ message: "Server error. Please try again later." });
-//   }
-// };
+          <h1 style="color: #333; text-align:center; letter-spacing: 5px;">
+            ${otp}
+          </h1>
+
+          <p>This OTP will expire in <strong>5 minutes</strong>.</p>
+
+          <p style="margin-top: 20px;">
+            Best Regards,<br>
+            <strong>Hotel Management Team</strong>
+          </p>
+        </div>
+      </div>
+    `;
+
+    // Send email through Gmail API
+    await sendMailWithGmailApi(admin.email, "Admin Password Reset OTP", htmlContent);
+
+    res.status(200).json({ message: "OTP sent to admin's registered email." });
+
+  } catch (err) {
+    console.error("Forgot Password Error:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
 
 // // ======================================================
 // // ✅ VERIFY OTP
@@ -311,6 +328,49 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
+
+
+// // Send email using Gmail API (not SMTP)
+// async function sendMailWithGmailApi(to, subject, textBody) {
+//   const oauth2Client = new google.auth.OAuth2(
+//     process.env.GMAIL_CLIENT_ID,
+//     process.env.GMAIL_CLIENT_SECRET,
+//     process.env.REDIRECT_URI
+//   );
+//   oauth2Client.setCredentials({
+//     refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+//   });
+
+//   const accessTokenObj = await oauth2Client.getAccessToken();
+//   const accessToken = accessTokenObj?.token || accessTokenObj;
+
+//   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+//   const message = [
+//     `From: ${process.env.GMAIL_USER}`,
+//     `To: ${to}`,
+//     `Subject: ${subject}`,
+//     "MIME-Version: 1.0",
+//     "Content-Type: text/plain; charset=UTF-8",
+//     "",
+//     textBody,
+//   ].join("\n");
+
+//   const encodedMessage = Buffer.from(message)
+//     .toString("base64")
+//     .replace(/\+/g, "-")
+//     .replace(/\//g, "_")
+//     .replace(/=+$/, "");
+
+//   await gmail.users.messages.send({
+//     userId: "me",
+//     requestBody: { raw: encodedMessage },
+//   });
+// }
+
+// // ======================================================
+// // 🔄 FIXED FORGOT PASSWORD — Works on Render
+// // ======================================================
 // exports.forgotPassword = async (req, res) => {
 //   try {
 //     const { email } = req.body;
@@ -329,30 +389,12 @@ exports.verifyOTP = async (req, res) => {
 //     admin.resetOTPExpiry = expiry;
 //     await admin.save();
 
-//     // 🔥 OAuth2 Access Token
-//     const accessToken = await oauth2Client.getAccessToken();
-
-//     // 🔥 Gmail OAuth2 Transporter
-//     const transporter = nodemailer.createTransport({
-//       service: "gmail",
-//       auth: {
-//         type: "OAuth2",
-//         user: process.env.GMAIL_USER,
-//         clientId: process.env.GMAIL_CLIENT_ID,
-//         clientSecret: process.env.GMAIL_CLIENT_SECRET,
-//         refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-//         accessToken: accessToken?.token || accessToken,
-//       },
-//     });
-
-//     const mailOptions = {
-//       from: `"Admin Panel" <${process.env.GMAIL_USER}>`,
-//       to: admin.email,
-//       subject: "Admin Password Reset OTP",
-//       text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
-//     };
-
-//     await transporter.sendMail(mailOptions);
+//     // Send OTP using Gmail API
+//     await sendMailWithGmailApi(
+//       admin.email,
+//       "Admin Password Reset OTP",
+//       `Your OTP is ${otp}. It will expire in 5 minutes.`
+//     );
 
 //     res.status(200).json({ message: "OTP sent to admin's registered email." });
 //   } catch (err) {
@@ -360,80 +402,6 @@ exports.verifyOTP = async (req, res) => {
 //     res.status(500).json({ message: "Server error. Please try again later." });
 //   }
 // };
-
-
-// Send email using Gmail API (not SMTP)
-async function sendMailWithGmailApi(to, subject, textBody) {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    process.env.REDIRECT_URI
-  );
-  oauth2Client.setCredentials({
-    refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-  });
-
-  const accessTokenObj = await oauth2Client.getAccessToken();
-  const accessToken = accessTokenObj?.token || accessTokenObj;
-
-  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-  const message = [
-    `From: ${process.env.GMAIL_USER}`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "",
-    textBody,
-  ].join("\n");
-
-  const encodedMessage = Buffer.from(message)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  await gmail.users.messages.send({
-    userId: "me",
-    requestBody: { raw: encodedMessage },
-  });
-}
-
-// ======================================================
-// 🔄 FIXED FORGOT PASSWORD — Works on Render
-// ======================================================
-exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email || email.trim() === "")
-      return res.status(400).json({ message: "Email is required" });
-
-    const admin = await Admin.findOne({ email: email.trim().toLowerCase() });
-    if (!admin)
-      return res.status(403).json({ message: "Email not registered as admin" });
-
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 5 * 60 * 1000);
-
-    admin.resetOTP = otp;
-    admin.resetOTPExpiry = expiry;
-    await admin.save();
-
-    // Send OTP using Gmail API
-    await sendMailWithGmailApi(
-      admin.email,
-      "Admin Password Reset OTP",
-      `Your OTP is ${otp}. It will expire in 5 minutes.`
-    );
-
-    res.status(200).json({ message: "OTP sent to admin's registered email." });
-  } catch (err) {
-    console.error("Forgot Password Error:", err);
-    res.status(500).json({ message: "Server error. Please try again later." });
-  }
-};
 
 // ======================================================
 // 🔁 RESET PASSWORD
