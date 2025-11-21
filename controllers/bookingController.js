@@ -384,24 +384,108 @@ exports.assignRoom = async (req, res) => {
   }
 };
 
+// exports.confirmBooking = async (req, res) => {
+//   try {
+//     const { bookingId } = req.params;
+//     const { transactionNumber } = req.body;
+
+//     if (!transactionNumber)
+//       return res.status(400).json({ message: 'Transaction number required' });
+
+//     const booking = await Booking.findById(bookingId);
+//     if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+//     booking.status = "confirmed"; // deposit
+//     booking.transactionNumber = transactionNumber;
+//     await booking.save();
+
+//     await updateBookingInSheet(booking);
+
+//     res.status(200).json({ message: 'Booking confirmed.', booking });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 exports.confirmBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const { transactionNumber } = req.body;
 
-    if (!transactionNumber)
+    if (!transactionNumber) {
       return res.status(400).json({ message: 'Transaction number required' });
+    }
 
     const booking = await Booking.findById(bookingId);
-    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
 
-    booking.status = "confirmed"; // deposit
+    // Update booking status
+    booking.status = "confirmed"; 
     booking.transactionNumber = transactionNumber;
     await booking.save();
 
     await updateBookingInSheet(booking);
 
-    res.status(200).json({ message: 'Booking confirmed.', booking });
+    // -------------------------------------
+    // SEND EMAIL USING GMAIL API
+    // -------------------------------------
+
+    try {
+      const recipient = booking.isAgencyBooking 
+        ? booking.agencyEmail 
+        : booking.email;
+
+      if (recipient) {
+        const htmlContent = `
+          <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
+            <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
+              
+              <h2 style="color: #006600;">Booking Confirmed</h2>
+
+              <p>Dear <strong>${booking.isAgencyBooking ? booking.agentName : booking.firstName}</strong>,</p>
+
+              <p>Your booking has been <strong>successfully confirmed</strong> after receiving the payment deposit.</p>
+
+              <h3 style="color:#444;">Booking Details</h3>
+              <p><strong>Booking Number:</strong> ${booking.bookingNumber}</p>
+              <p><strong>Room Type:</strong> ${booking.rooms[0].roomType}</p>
+              <p><strong>Assigned Room(s):</strong> ${booking.assignedRoom.join(", ")}</p>
+              <p><strong>Check-in:</strong> ${new Date(booking.checkIn).toDateString()}</p>
+              <p><strong>Check-out:</strong> ${new Date(booking.checkOut).toDateString()}</p>
+
+              <h3 style="margin-top:20px;color:#444;">Payment</h3>
+              <p><strong>Transaction Number:</strong> ${transactionNumber}</p>
+              <p>Status: <span style="color:green;"><strong>Confirmed</strong></span></p>
+
+              <p style="margin-top: 20px;">
+                Best Regards,<br>
+                <strong>Hotel Management Team</strong>
+              </p>
+
+            </div>
+          </div>
+        `;
+
+        await sendMailWithGmailApi(
+          recipient,
+          `Booking Confirmed - ${booking.bookingNumber}`,
+          htmlContent
+        );
+      }
+
+    } catch (emailErr) {
+      console.error("EMAIL SEND ERROR (confirmBooking):", emailErr.message);
+    }
+
+    // -------------------------------------
+    // RESPONSE
+    // -------------------------------------
+    res.status(200).json({
+      message: "Booking confirmed.",
+      booking
+    });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
