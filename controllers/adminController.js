@@ -360,7 +360,7 @@ exports.verifyOTP = async (req, res) => {
 //     res.status(500).json({ message: "Server error. Please try again later." });
 //   }
 // };
-const { google } = require("googleapis");
+
 
 // Send email using Gmail API (not SMTP)
 async function sendMailWithGmailApi(to, subject, textBody) {
