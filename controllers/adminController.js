@@ -140,56 +140,7 @@ const authenticateAdminOrReceptionist = async (req, res, next) => {
   }
 };
 
-// exports.login = async (req, res) => {
-//   try {
-//     const { username, password } = req.body;
-//     const routePath = req.originalUrl; // e.g. '/admin/login' or '/receptionist/login'
 
-//     let user = await Admin.findOne({ username });
-//     let role = "admin";
-
-//     if (!user) {
-//       user = await Receptionist.findOne({ username });
-//       role = "receptionist";
-//     }
-
-//     if (!user) return res.status(404).json({ message: "User not found" });
-
-//     const isMatch = await bcrypt.compare(password, user.password);
-//     if (!isMatch) return res.status(401).json({ message: "Invalid password" });
-
-//     // 🚫 Enforce route-based access
-//     if (routePath.includes("/receptionist") && role !== "receptionist") {
-//       return res.status(403).json({ message: "Admins cannot log in here" });
-//     }
-//     if (routePath.includes("/admin") && role !== "admin") {
-//       return res.status(403).json({ message: "Receptionists cannot log in here" });
-//     }
-
-//     const token = jwt.sign(
-//       { id: user._id, username: user.username, role },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "1h" }
-//     );
-
-//     // ✅ Store token in secure cookie
-//     res.cookie("adminToken", token, {
-//       httpOnly: true,
-//       secure: process.env.NODE_ENV === "production",
-//       sameSite: "Strict",
-//       maxAge: 60 * 60 * 1000,
-//       path: "/",
-//     });
-
-//     res.status(200).json({
-//       message: `${role.charAt(0).toUpperCase() + role.slice(1)} logged in successfully`,
-//       role,
-//     });
-//   } catch (err) {
-//     console.error("Login Error:", err);
-//     res.status(500).json({ message: "Server error", error: err.message });
-//   }
-// };
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -360,6 +311,98 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
+// exports.forgotPassword = async (req, res) => {
+//   try {
+//     const { email } = req.body;
+//     if (!email || email.trim() === "")
+//       return res.status(400).json({ message: "Email is required" });
+
+//     const admin = await Admin.findOne({ email: email.trim().toLowerCase() });
+//     if (!admin)
+//       return res.status(403).json({ message: "Email not registered as admin" });
+
+//     // Generate OTP
+//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//     const expiry = new Date(Date.now() + 5 * 60 * 1000);
+
+//     admin.resetOTP = otp;
+//     admin.resetOTPExpiry = expiry;
+//     await admin.save();
+
+//     // 🔥 OAuth2 Access Token
+//     const accessToken = await oauth2Client.getAccessToken();
+
+//     // 🔥 Gmail OAuth2 Transporter
+//     const transporter = nodemailer.createTransport({
+//       service: "gmail",
+//       auth: {
+//         type: "OAuth2",
+//         user: process.env.GMAIL_USER,
+//         clientId: process.env.GMAIL_CLIENT_ID,
+//         clientSecret: process.env.GMAIL_CLIENT_SECRET,
+//         refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+//         accessToken: accessToken?.token || accessToken,
+//       },
+//     });
+
+//     const mailOptions = {
+//       from: `"Admin Panel" <${process.env.GMAIL_USER}>`,
+//       to: admin.email,
+//       subject: "Admin Password Reset OTP",
+//       text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
+//     };
+
+//     await transporter.sendMail(mailOptions);
+
+//     res.status(200).json({ message: "OTP sent to admin's registered email." });
+//   } catch (err) {
+//     console.error("Forgot Password Error:", err);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// };
+const { google } = require("googleapis");
+
+// Send email using Gmail API (not SMTP)
+async function sendMailWithGmailApi(to, subject, textBody) {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    process.env.REDIRECT_URI
+  );
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+  });
+
+  const accessTokenObj = await oauth2Client.getAccessToken();
+  const accessToken = accessTokenObj?.token || accessTokenObj;
+
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+  const message = [
+    `From: ${process.env.GMAIL_USER}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "",
+    textBody,
+  ].join("\n");
+
+  const encodedMessage = Buffer.from(message)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  await gmail.users.messages.send({
+    userId: "me",
+    requestBody: { raw: encodedMessage },
+  });
+}
+
+// ======================================================
+// 🔄 FIXED FORGOT PASSWORD — Works on Render
+// ======================================================
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -378,30 +421,12 @@ exports.forgotPassword = async (req, res) => {
     admin.resetOTPExpiry = expiry;
     await admin.save();
 
-    // 🔥 OAuth2 Access Token
-    const accessToken = await oauth2Client.getAccessToken();
-
-    // 🔥 Gmail OAuth2 Transporter
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        type: "OAuth2",
-        user: process.env.GMAIL_USER,
-        clientId: process.env.GMAIL_CLIENT_ID,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken: accessToken?.token || accessToken,
-      },
-    });
-
-    const mailOptions = {
-      from: `"Admin Panel" <${process.env.GMAIL_USER}>`,
-      to: admin.email,
-      subject: "Admin Password Reset OTP",
-      text: `Your OTP is ${otp}. It will expire in 5 minutes.`,
-    };
-
-    await transporter.sendMail(mailOptions);
+    // Send OTP using Gmail API
+    await sendMailWithGmailApi(
+      admin.email,
+      "Admin Password Reset OTP",
+      `Your OTP is ${otp}. It will expire in 5 minutes.`
+    );
 
     res.status(200).json({ message: "OTP sent to admin's registered email." });
   } catch (err) {
