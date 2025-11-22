@@ -24,6 +24,7 @@ module.exports = {
   8: "1sSZjRcZWem1ZHt91z0rsbhEyC99qGosOoGHSnGA6l7k", // August
   9: "1BNHQ8T_gDMnGs5MjGqHZw850RMLAxGOzBM4KmaN8iw8", // September
   10: "1h_6BSPNtEvgr4IJa5QYG2vD9f7j3BH_l_91wI9lGwqs", // October
-  11: "1i6P1lGkRaYDwCp1WjF6xOaMCUacYZBFejKPBPMQT920", // November
-  12: "1f5hPw-eneNZLtBSg8MVxzSzr4N6p_qk3qj0nBxcET98"  // December
+  // 11: "1i6P1lGkRaYDwCp1WjF6xOaMCUacYZBFejKPBPMQT920", // November
+  11: "1sNndPkWTuRFrV5aA353vPNIqds0F_ZLS3pp8X0I6t8o",
+  12: "1jbOMtgVzZsvwyhl-ior1KGYduC07jU_yySxhiLNAPUg"  // December
 };

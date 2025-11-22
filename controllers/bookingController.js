@@ -8,16 +8,6 @@ const roomNumberList = require("../roomNumberList");
 const { sendMailWithGmailApi } = require("../utils/gmailSender");
 ;
 
-// Booking number generator
-// const generateBookingNumber = async () => {
-//   const lastBooking = await Booking.findOne().sort({ createdAt: -1 });
-//   let nextNumber = 1001;
-//   if (lastBooking && lastBooking.bookingNumber) {
-//     const lastNum = parseInt(lastBooking.bookingNumber.replace('BKN', ''));
-//     if (!isNaN(lastNum)) nextNumber = lastNum + 1;
-//   }
-//   return `RN${nextNumber}`;
-// };
 const generateBookingNumber = async () => {
   const lastBooking = await Booking.findOne().sort({ createdAt: -1 });
 
@@ -192,6 +182,8 @@ exports.createBooking = async (req, res) => {
     } catch (emailErr) {
       console.error("EMAIL SEND ERROR:", emailErr.message);
     }
+    await addBookingToSheet(booking);
+
 
     // ------------------------------
     // RESPONSE
