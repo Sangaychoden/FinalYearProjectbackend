@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
-// const { authenticateAdminOrReceptionist } = require("../controllers/adminController");
+const { authenticateAdminOrReceptionist } = require("../controllers/adminController");
 // ======================================================
 // PUBLIC ROUTES
 // ======================================================
@@ -30,7 +30,6 @@ router.post("/reset-password", adminController.resetPassword);
 // PROTECTED (JWT inside controller middleware)
 // ======================================================
 router.put("/change-password", adminController.changePassword);
-
 router.get("/check-auth", authenticateAdminOrReceptionist, (req, res) => {
   res.status(200).json({
     authenticated: true,
