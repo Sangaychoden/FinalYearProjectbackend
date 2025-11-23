@@ -40,6 +40,7 @@ app.use(
       "http://localhost:5173",
       "http://localhost:5174",
       "http://localhost:5175",
+      "https://thimdorjiwebsite.onrender.com",
       "https://thim-dorji-frontend.vercel.app",
       "https://thim-dorji-frontend-ami1.vercel.app",
       "https://thim-dorji-frontend-m6uj.vercel.app"
