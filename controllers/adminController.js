@@ -4,6 +4,7 @@ const Receptionist = require("../models/receptionistModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const { authenticateAdminOrReceptionist } = require("../controllers/adminController");
 const { google } = require("googleapis");
 const { sendMailWithGmailApi } = require("../utils/gmailSender");
 const OAuth2 = google.auth.OAuth2;
