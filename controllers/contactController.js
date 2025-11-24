@@ -25,7 +25,7 @@ exports.sendContactMessage = async (req, res) => {
 
           <p style="margin-top: 20px;">
             Best Regards,<br>
-            <strong>Your Website Contact Bot</strong>
+            <strong>Hotel Management Team</strong>
           </p>
         </div>
       </div>
