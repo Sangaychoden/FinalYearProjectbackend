@@ -65,7 +65,7 @@ exports.createRoom = async (req, res) => {
     // Sanitize input
     const cleanData = sanitizeRoomInput(req.body);
 
-    // ✅ Validate & parse room numbers
+    // ⭐ FIX ROOM NUMBERS (AGGRESSIVE CLEAN)
     if (!req.body.roomNumbers || !req.body.roomNumbers.trim()) {
       return res.status(400).json({
         success: false,
@@ -73,16 +73,32 @@ exports.createRoom = async (req, res) => {
       });
     }
 
-    const roomNumbers = req.body.roomNumbers.split(",").map(r => r.trim());
+    let roomNumbersArr = [];
 
-    if (roomNumbers.length !== cleanData.numberOfRooms) {
+    // Case 1: JSON array from frontend
+    try {
+      const parsed = JSON.parse(req.body.roomNumbers);
+      if (Array.isArray(parsed)) {
+        roomNumbersArr = parsed.map((x) => String(x).trim());
+      }
+    } catch {
+      // Case 2: Plain text: "101, 102, 103"
+      roomNumbersArr = req.body.roomNumbers
+        .replace(/[\[\]\"]/g, "") // Remove brackets & quotes
+        .split(",")
+        .map((x) => x.trim())
+        .filter((x) => x !== "");
+    }
+
+    // ⭐ Validate number count
+    if (roomNumbersArr.length !== Number(cleanData.numberOfRooms)) {
       return res.status(400).json({
         success: false,
-        message: `Mismatch: numberOfRooms = ${cleanData.numberOfRooms}, but ${roomNumbers.length} room numbers provided.`
+        message: `Mismatch: numberOfRooms = ${cleanData.numberOfRooms}, but ${roomNumbersArr.length} room numbers provided.`
       });
     }
 
-    // ✅ Upload images if provided
+    // ⭐ Upload images
     let images = [];
     if (req.files?.length > 0) {
       try {
@@ -96,10 +112,10 @@ exports.createRoom = async (req, res) => {
       }
     }
 
-    // ✅ Create room
+    // ⭐ CREATE ROOM
     const newRoom = new Room({
       ...cleanData,
-      roomNumbers,
+      roomNumbers: roomNumbersArr,   // FINAL CLEAN FIX
       images
     });
 
@@ -112,11 +128,11 @@ exports.createRoom = async (req, res) => {
     });
 
   } catch (error) {
-    // Handle duplicate roomType case gracefully
+    // Handle duplicated roomTypes
     if (error.code === 11000 && error.keyPattern?.roomType) {
       return res.status(400).json({
         success: false,
-        message: `Room type '${req.body.roomType}' already exists. Use update instead or provide a different roomType.`
+        message: `Room type '${req.body.roomType}' already exists. Use update instead or choose another roomType.`
       });
     }
 
@@ -127,6 +143,82 @@ exports.createRoom = async (req, res) => {
     });
   }
 };
+
+// exports.createRoom = async (req, res) => {
+//   try {
+//     // Validate required fields
+//     if (!req.body.roomType || !req.body.numberOfRooms || !req.body.price) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing required fields: roomType, numberOfRooms, price."
+//       });
+//     }
+
+//     // Sanitize input
+//     const cleanData = sanitizeRoomInput(req.body);
+
+//     // ✅ Validate & parse room numbers
+//     if (!req.body.roomNumbers || !req.body.roomNumbers.trim()) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Room numbers required (comma separated, e.g. 101,102,103)"
+//       });
+//     }
+
+//     const roomNumbers = req.body.roomNumbers.split(",").map(r => r.trim());
+
+//     if (roomNumbers.length !== cleanData.numberOfRooms) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Mismatch: numberOfRooms = ${cleanData.numberOfRooms}, but ${roomNumbers.length} room numbers provided.`
+//       });
+//     }
+
+//     // ✅ Upload images if provided
+//     let images = [];
+//     if (req.files?.length > 0) {
+//       try {
+//         images = await uploadImages(req.files);
+//       } catch (err) {
+//         return res.status(500).json({
+//           success: false,
+//           message: "Image upload failed",
+//           error: err.message
+//         });
+//       }
+//     }
+
+//     // ✅ Create room
+//     const newRoom = new Room({
+//       ...cleanData,
+//       roomNumbers,
+//       images
+//     });
+
+//     await newRoom.save();
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Room created successfully",
+//       room: newRoom
+//     });
+
+//   } catch (error) {
+//     // Handle duplicate roomType case gracefully
+//     if (error.code === 11000 && error.keyPattern?.roomType) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Room type '${req.body.roomType}' already exists. Use update instead or provide a different roomType.`
+//       });
+//     }
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error while creating room",
+//       error: error.message
+//     });
+//   }
+// };
 
 // exports.updateRoom = async (req, res) => {
 //   try {
