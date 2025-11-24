@@ -254,7 +254,7 @@ exports.updateTestimonial = async (req, res) => {
     await testimonial.save();
 
     res.status(200).json({
-      message: "✅ Testimonial updated successfully",
+      message: " Testimonial updated successfully",
       testimonial,
     });
   } catch (error) {
