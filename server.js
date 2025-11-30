@@ -146,7 +146,8 @@ app.use(
       "https://thim-dorji-frontend-ami1.vercel.app",
       "https://thim-dorji-frontend-m6uj.vercel.app",
       "https://thimdorjiwebsite-vaaz.onrender.com",
-      "https://thimdorjiadmin-ovza.onrender.com"
+      "https://thimdorjiadmin-ovza.onrender.com",
+      "https://thimdorjireceptionist-zbce.onrender.com"
     ],
     credentials: true,
   })
