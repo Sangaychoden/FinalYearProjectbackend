@@ -254,6 +254,281 @@ const generateBookingNumber = async () => {
 //     return res.status(500).json({ message: "Server error" });
 //   }
 // };
+// exports.createBooking = async (req, res) => {
+//   try {
+//     const {
+//       firstName,
+//       lastName,
+//       email,
+//       country,
+//       phone,
+//       checkIn,
+//       checkOut,
+//       roomSelection,
+//       specialRequest,
+//       journalNumber,
+//       statusOverride,
+//       assignedRoom
+//     } = req.body;
+
+//     // ----------------------------------------------------
+//     // BASIC VALIDATION
+//     // ----------------------------------------------------
+//     if (!roomSelection?.length)
+//       return res.status(400).json({ message: "Room selection is required" });
+
+//     if (!validator.isDate(checkIn) || !validator.isDate(checkOut))
+//       return res.status(400).json({ message: "Invalid dates" });
+
+//     const ci = new Date(checkIn);
+//     const co = new Date(checkOut);
+//     const nights = Math.ceil((co - ci) / 86400000);
+
+//     if (nights <= 0)
+//       return res.status(400).json({
+//         message: "Check-out must be after check-in"
+//       });
+
+//     let total = 0;
+//     let roomDetails = [];
+
+//     // ----------------------------------------------------
+//     // FINAL ASSIGNED ROOMS (manual OR auto)
+//     // ----------------------------------------------------
+//     let assignedRoomsFinal = [];
+
+//     const manualRooms =
+//       Array.isArray(assignedRoom) && assignedRoom.length > 0
+//         ? assignedRoom.map((r) => String(r))
+//         : [];
+
+//     const isManual = manualRooms.length > 0;
+
+//     // ====================================================
+//     // ⭐ 1. DOUBLE BOOKING PREVENTION (MANUAL ROOMS)
+//     // ====================================================
+//     if (isManual) {
+//       const conflict = await Booking.findOne({
+//         assignedRoom: { $in: manualRooms },
+//         checkIn: { $lte: co },
+//         checkOut: { $gte: ci },
+//         status: {
+//           $in: ["pending", "confirmed", "guaranteed", "checked_in"]
+//         }
+//       });
+
+//       if (conflict)
+//         return res.status(400).json({
+//           message: "One or more selected rooms are already booked"
+//         });
+
+//       assignedRoomsFinal = [...manualRooms];
+//     }
+
+//     // ====================================================
+//     // ⭐ 2. PROCESS ROOM TYPES
+//     // ====================================================
+//     for (const reqRoom of roomSelection) {
+//       let {
+//         roomType,
+//         roomsRequested = 1,
+//         occupancyType = [],
+//         mealPlan,
+//         adults,
+//         childrenAges = [],
+//         extraBed = 0
+//       } = reqRoom;
+
+//       const roomDoc = await Room.findOne({ roomType });
+//       if (!roomDoc)
+//         return res
+//           .status(400)
+//           .json({ message: `Room ${roomType} not found` });
+
+//       const pricing = roomDoc.pricing;
+
+//       // ----------------------------------------------------
+//       // ⭐ FIX → Convert all "12+" into adults
+//       // ----------------------------------------------------
+//       let filteredChildren = [];
+//       childrenAges.forEach((age) => {
+//         if (age === "12+") adults += 1;
+//         else filteredChildren.push(age);
+//       });
+//       childrenAges = filteredChildren;
+
+//       // ----------------------------------------------------
+//       // ⭐ AUTO ASSIGN ROOMS IF MANUAL NOT PROVIDED
+//       // ----------------------------------------------------
+//       if (!isManual) {
+//         const allowedRooms = roomDoc.roomNumbers.map(String);
+
+//         const overlapping = await Booking.find({
+//           "rooms.roomType": roomType,
+//           checkIn: { $lte: co },
+//           checkOut: { $gte: ci },
+//           status: {
+//             $in: ["pending", "confirmed", "guaranteed", "checked_in"]
+//           }
+//         });
+
+//         const usedRooms = overlapping.flatMap((b) => b.assignedRoom).map(String);
+//         const freeRooms = allowedRooms.filter((r) => !usedRooms.includes(r));
+
+//         if (freeRooms.length < roomsRequested) {
+//           return res.status(400).json({
+//             message: "No rooms available on this date"
+//           });
+//         }
+
+//         assignedRoomsFinal.push(...freeRooms.slice(0, roomsRequested));
+//       }
+
+//       // ----------------------------------------------------
+//       // ⭐ PRICING
+//       // ----------------------------------------------------
+//       let baseTotal = 0;
+
+//       for (let i = 0; i < roomsRequested; i++) {
+//         const occ = occupancyType[i] || "double";
+//         const occKey = occ === "single" ? "single" : "double";
+//         const price = pricing?.[mealPlan]?.[occKey] ?? 0;
+//         baseTotal += price;
+//       }
+
+//       let childCost = 0;
+
+//       // ⭐ ONLY 6–11 gets child pricing
+//       childrenAges.forEach((age) => {
+//         if (age === "6-11")
+//           childCost += pricing.childPolicy?.age6to11?.[mealPlan] ?? 0;
+//       });
+
+//       const doubleCount = occupancyType.filter((o) => o === "double").length;
+//       const appliedExtraBeds = Math.min(extraBed, doubleCount);
+
+//       const extraBedPrice = pricing.extraBed?.[mealPlan] ?? 0;
+//       const extraBedCost = appliedExtraBeds * extraBedPrice;
+
+//       const perNightTotal = baseTotal + childCost + extraBedCost;
+
+//       total += perNightTotal * nights;
+
+//       roomDetails.push({
+//         roomType,
+//         quantity: roomsRequested,
+//         occupancyType,
+//         mealPlan,
+//         adults,
+//         children: childrenAges.map((age) => ({ age })),
+//         extraBeds: appliedExtraBeds,
+//         extraBedPrice,
+//         extraBedCostPerNight: extraBedCost,
+//         childCostPerNight: childCost,
+//         pricePerNight: baseTotal
+//       });
+//     }
+
+//     // ====================================================
+//     // ⭐ 3. ALWAYS USE MANUAL IF PROVIDED
+//     // ====================================================
+//     if (isManual) assignedRoomsFinal = manualRooms;
+
+//     // ====================================================
+//     // ⭐ 4. SAVE BOOKING
+//     // ====================================================
+//     const bookingNumber = await generateBookingNumber();
+
+//     const booking = await Booking.create({
+//       bookingNumber,
+//       firstName,
+//       lastName,
+//       email,
+//       country,
+//       phoneNumber: phone,
+//       checkIn: ci,
+//       checkOut: co,
+//       rooms: roomDetails,
+//       meals: {
+//         breakfast: roomDetails.some((r) => r.mealPlan !== "ep"),
+//         lunch: roomDetails.some((r) => r.mealPlan === "ap"),
+//         dinner: roomDetails.some(
+//           (r) => r.mealPlan === "map" || r.mealPlan === "ap"
+//         )
+//       },
+//       specialRequest,
+//       totalPrice: total,
+//       transactionNumber: journalNumber || "",
+//       assignedRoom: assignedRoomsFinal,
+//       status: statusOverride || "pending"
+//     });
+
+//     // ====================================================
+//     // ⭐ 5. EMAILS
+//     // ====================================================
+//     const htmlContentUser = `
+//       <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
+//         <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
+//           <h2 style="color: #006600;">Booking Received</h2>
+//           <p>Dear <strong>${firstName}</strong>,</p>
+//           <p>Your booking request has been <strong>received</strong>. We will contact you shortly.</p>
+          
+//           <h3 style="color:#444;">Booking Summary</h3>
+//           <p><strong>Booking Number:</strong> ${bookingNumber}</p>
+//           <p><strong>Check-in:</strong> ${ci.toDateString()}</p>
+//           <p><strong>Check-out:</strong> ${co.toDateString()}</p>
+//           <p><strong>Total Rooms:</strong> ${roomDetails.reduce((s,r)=>s+r.quantity,0)}</p>
+//           <p><strong>Total Price:</strong> BTN ${total.toFixed(2)}</p>
+
+//           <p style="margin-top: 20px;">Warm regards,<br><strong>Hotel Team</strong></p>
+//         </div>
+//       </div>
+//     `;
+
+//     const htmlContentAdmin = `
+//       <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
+//         <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
+//           <h2 style="color: #006600;">New Booking Received</h2>
+
+//           <h3 style="color:#444;">Customer Info</h3>
+//           <p><strong>${firstName} ${lastName}</strong></p>
+//           <p>${email}</p>
+
+//           <h3 style="color:#444;">Booking Summary</h3>
+//           <p><strong>Booking Number:</strong> ${bookingNumber}</p>
+//           <p><strong>Check-in:</strong> ${ci.toDateString()}</p>
+//           <p><strong>Check-out:</strong> ${co.toDateString()}</p>
+//           <p><strong>Total:</strong> BTN ${total.toFixed(2)}</p>
+//         </div>
+//       </div>
+//     `;
+
+//     try {
+//       await sendMailWithGmailApi(
+//         email,
+//         `Booking ${bookingNumber}`,
+//         htmlContentUser
+//       );
+
+//       await sendMailWithGmailApi(
+//         adminEmail,
+//         `New Booking ${bookingNumber}`,
+//         htmlContentAdmin
+//       );
+//     } catch (err) {
+//       console.log("Email error:", err.message);
+//     }
+
+//     return res.status(201).json({
+//       message: "Booking created successfully",
+//       booking
+//     });
+//   } catch (err) {
+//     console.error("Booking creation error:", err);
+//     return res.status(500).json({ message: "Server error" });
+//   }
+// };
+
 exports.createBooking = async (req, res) => {
   try {
     const {
@@ -347,9 +622,7 @@ exports.createBooking = async (req, res) => {
 
       const pricing = roomDoc.pricing;
 
-      // ----------------------------------------------------
-      // ⭐ FIX → Convert all "12+" into adults
-      // ----------------------------------------------------
+      // Convert all "12+" → adult
       let filteredChildren = [];
       childrenAges.forEach((age) => {
         if (age === "12+") adults += 1;
@@ -357,9 +630,7 @@ exports.createBooking = async (req, res) => {
       });
       childrenAges = filteredChildren;
 
-      // ----------------------------------------------------
-      // ⭐ AUTO ASSIGN ROOMS IF MANUAL NOT PROVIDED
-      // ----------------------------------------------------
+      // AUTO ASSIGN ROOMS
       if (!isManual) {
         const allowedRooms = roomDoc.roomNumbers.map(String);
 
@@ -367,26 +638,25 @@ exports.createBooking = async (req, res) => {
           "rooms.roomType": roomType,
           checkIn: { $lte: co },
           checkOut: { $gte: ci },
-          status: {
-            $in: ["pending", "confirmed", "guaranteed", "checked_in"]
-          }
+          status: [
+            "pending",
+            "confirmed",
+            "guaranteed",
+            "checked_in"
+          ]
         });
 
         const usedRooms = overlapping.flatMap((b) => b.assignedRoom).map(String);
         const freeRooms = allowedRooms.filter((r) => !usedRooms.includes(r));
 
         if (freeRooms.length < roomsRequested) {
-          return res.status(400).json({
-            message: "No rooms available on this date"
-          });
+          return res.status(400).json({ message: "No rooms available" });
         }
 
         assignedRoomsFinal.push(...freeRooms.slice(0, roomsRequested));
       }
 
-      // ----------------------------------------------------
-      // ⭐ PRICING
-      // ----------------------------------------------------
+      // PRICING
       let baseTotal = 0;
 
       for (let i = 0; i < roomsRequested; i++) {
@@ -398,7 +668,6 @@ exports.createBooking = async (req, res) => {
 
       let childCost = 0;
 
-      // ⭐ ONLY 6–11 gets child pricing
       childrenAges.forEach((age) => {
         if (age === "6-11")
           childCost += pricing.childPolicy?.age6to11?.[mealPlan] ?? 0;
@@ -429,14 +698,8 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // ====================================================
-    // ⭐ 3. ALWAYS USE MANUAL IF PROVIDED
-    // ====================================================
     if (isManual) assignedRoomsFinal = manualRooms;
 
-    // ====================================================
-    // ⭐ 4. SAVE BOOKING
-    // ====================================================
     const bookingNumber = await generateBookingNumber();
 
     const booking = await Booking.create({
@@ -464,55 +727,147 @@ exports.createBooking = async (req, res) => {
     });
 
     // ====================================================
-    // ⭐ 5. EMAILS
+    // ⭐ SAFE FORMATTER
+    // ====================================================
+    const safe = (v) => Number(v ?? 0).toFixed(2);
+
+    // ====================================================
+    // ⭐ ROOM HTML
+    // ====================================================
+    const roomsHtml = booking.rooms
+      .map((r, i) => {
+        return `
+        <div style="padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:8px;">
+          <h4 style="margin:0 0 5px 0;">Room ${i + 1}: ${r.roomType}</h4>
+          <p><strong>Quantity:</strong> ${r.quantity}</p>
+          <p><strong>Occupancy:</strong> ${r.occupancyType.join(", ")}</p>
+          <p><strong>Meal Plan:</strong> ${r.mealPlan.toUpperCase()}</p>
+          <p><strong>Adults:</strong> ${r.adults}</p>
+          <p><strong>Children:</strong> ${r.children.length ? r.children.map(c => c.age).join(", ") : "None"}</p>
+          <p><strong>Extra Beds:</strong> ${r.extraBeds}</p>
+          <p><strong>Base Price Per Night:</strong> BTN ${safe(r.pricePerNight)}</p>
+          <p><strong>Child Cost Per Night:</strong> BTN ${safe(r.childCostPerNight)}</p>
+          <p><strong>Extra Bed Cost Per Night:</strong> BTN ${safe(r.extraBedCostPerNight)}</p>
+        </div>`;
+      })
+      .join("");
+
+    const assignedRoomsList =
+      booking.assignedRoom.length > 0
+        ? booking.assignedRoom.join(", ")
+        : "Not Assigned";
+
+    const nightsCount = nights;
+
+    const mealsHtml = `
+      <p><strong>Breakfast:</strong> ${booking.meals.breakfast ? "Yes" : "No"}</p>
+      <p><strong>Lunch:</strong> ${booking.meals.lunch ? "Yes" : "No"}</p>
+      <p><strong>Dinner:</strong> ${booking.meals.dinner ? "Yes" : "No"}</p>
+    `;
+
+    const specialReqHtml = booking.specialRequest
+      ? `<p><strong>Special Request:</strong> ${booking.specialRequest}</p>`
+      : "";
+
+    const txnHtml = booking.transactionNumber
+      ? `<p><strong>Transaction Number:</strong> ${booking.transactionNumber}</p>`
+      : `<p><strong>Transaction Number:</strong> None</p>`;
+
+    // ====================================================
+    // ⭐ USER EMAIL
     // ====================================================
     const htmlContentUser = `
-      <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
-        <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
-          <h2 style="color: #006600;">Booking Received</h2>
-          <p>Dear <strong>${firstName}</strong>,</p>
-          <p>Your booking request has been <strong>received</strong>. We will contact you shortly.</p>
-          
-          <h3 style="color:#444;">Booking Summary</h3>
-          <p><strong>Booking Number:</strong> ${bookingNumber}</p>
-          <p><strong>Check-in:</strong> ${ci.toDateString()}</p>
-          <p><strong>Check-out:</strong> ${co.toDateString()}</p>
-          <p><strong>Total Rooms:</strong> ${roomDetails.reduce((s,r)=>s+r.quantity,0)}</p>
-          <p><strong>Total Price:</strong> BTN ${total.toFixed(2)}</p>
+      <div style="font-family:Arial;padding:20px;background:#f9f9f9;">
+        <div style="max-width:650px;margin:auto;background:white;border-radius:10px;padding:20px;border:1px solid #ddd;">
+          <h2 style="color:#006600;">Booking Confirmation</h2>
+          <p>Hello ${booking.firstName}, your booking has been confirmed.</p>
 
-          <p style="margin-top: 20px;">Warm regards,<br><strong>Hotel Team</strong></p>
+          <h3>Booking Info</h3>
+          <p><strong>Booking Number:</strong> ${booking.bookingNumber}</p>
+          <p><strong>Status:</strong> ${booking.status}</p>
+
+          <h3>Guest Info</h3>
+          <p><strong>Name:</strong> ${booking.firstName} ${booking.lastName}</p>
+          <p><strong>Email:</strong> ${booking.email}</p>
+          <p><strong>Country:</strong> ${booking.country}</p>
+          <p><strong>Phone:</strong> ${booking.phoneNumber}</p>
+
+          <h3>Stay Info</h3>
+          <p><strong>Check-in:</strong> ${booking.checkIn.toDateString()}</p>
+          <p><strong>Check-out:</strong> ${booking.checkOut.toDateString()}</p>
+          <p><strong>Nights:</strong> ${nightsCount}</p>
+
+          <h3>Assigned Rooms</h3>
+          <p>${assignedRoomsList}</p>
+
+          <h3>Meals</h3>
+          ${mealsHtml}
+
+          <h3>Room Details</h3>
+          ${roomsHtml}
+
+          <h3>Total Price</h3>
+          <p style="font-size:18px;"><strong>BTN ${safe(booking.totalPrice)}</strong></p>
+
+          ${txnHtml}
+          ${specialReqHtml}
+
+          <p style="margin-top:20px;">Warm regards,<br><strong>Hotel Team</strong></p>
         </div>
       </div>
     `;
 
+    // ====================================================
+    // ⭐ ADMIN EMAIL
+    // ====================================================
     const htmlContentAdmin = `
-      <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
-        <div style="max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
-          <h2 style="color: #006600;">New Booking Received</h2>
+      <div style="font-family:Arial;padding:20px;background:#f9f9f9;">
+        <div style="max-width:650px;margin:auto;background:white;border-radius:10px;padding:20px;border:1px solid #ddd;">
 
-          <h3 style="color:#444;">Customer Info</h3>
-          <p><strong>${firstName} ${lastName}</strong></p>
-          <p>${email}</p>
+          <h2 style="color:#006600;">New Booking Received</h2>
 
-          <h3 style="color:#444;">Booking Summary</h3>
-          <p><strong>Booking Number:</strong> ${bookingNumber}</p>
-          <p><strong>Check-in:</strong> ${ci.toDateString()}</p>
-          <p><strong>Check-out:</strong> ${co.toDateString()}</p>
-          <p><strong>Total:</strong> BTN ${total.toFixed(2)}</p>
+          <h3>Booking Info</h3>
+          <p><strong>Booking Number:</strong> ${booking.bookingNumber}</p>
+          <p><strong>Status:</strong> ${booking.status}</p>
+
+          <h3>Guest</h3>
+          <p><strong>Name:</strong> ${booking.firstName} ${booking.lastName}</p>
+          <p><strong>Email:</strong> ${booking.email}</p>
+          <p><strong>Country:</strong> ${booking.country}</p>
+          <p><strong>Phone:</strong> ${booking.phoneNumber}</p>
+
+          <h3>Stay Info</h3>
+          <p><strong>Check-in:</strong> ${booking.checkIn.toDateString()}</p>
+          <p><strong>Check-out:</strong> ${booking.checkOut.toDateString()}</p>
+          <p><strong>Nights:</strong> ${nightsCount}</p>
+
+          <h3>Assigned Rooms</h3>
+          <p>${assignedRoomsList}</p>
+
+          <h3>Meals</h3>
+          ${mealsHtml}
+
+          <h3>Room Breakdown</h3>
+          ${roomsHtml}
+
+          <h3>Total Price</h3>
+          <p style="font-size:18px;"><strong>BTN ${safe(booking.totalPrice)}</strong></p>
+
+          ${txnHtml}
+          ${specialReqHtml}
+
+
         </div>
       </div>
     `;
 
+    // SEND EMAILS
     try {
-      await sendMailWithGmailApi(
-        email,
-        `Booking ${bookingNumber}`,
-        htmlContentUser
-      );
+      await sendMailWithGmailApi(email, `Booking ${booking.bookingNumber}`, htmlContentUser);
 
       await sendMailWithGmailApi(
         adminEmail,
-        `New Booking ${bookingNumber}`,
+        `New Booking ${booking.bookingNumber}`,
         htmlContentAdmin
       );
     } catch (err) {
@@ -523,12 +878,12 @@ exports.createBooking = async (req, res) => {
       message: "Booking created successfully",
       booking
     });
+
   } catch (err) {
     console.error("Booking creation error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 
 // exports.createBooking = async (req, res) => {
 //   try {
