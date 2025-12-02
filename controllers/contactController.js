@@ -25,7 +25,7 @@ exports.sendContactMessage = async (req, res) => {
 
           <p style="margin-top: 20px;">
             Best Regards,<br>
-            <strong>Hotel Management Team</strong>
+            <strong>ThimDorji Resort</strong>
           </p>
         </div>
       </div>
