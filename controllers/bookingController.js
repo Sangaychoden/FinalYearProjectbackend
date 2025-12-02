@@ -1255,20 +1255,40 @@ function mealFlags(plan) {
 
 exports.createBooking = async (req, res) => {
   try {
+    // const {
+    //   firstName,
+    //   lastName,
+    //   email,
+    //   country,
+    //   phone,
+    //   checkIn,
+    //   checkOut,
+    //   roomSelection,
+    //   specialRequest,
+    //   journalNumber,
+    //   statusOverride,
+    //   assignedRoom,
+    // } = req.body;
     const {
-      firstName,
-      lastName,
-      email,
-      country,
-      phone,
-      checkIn,
-      checkOut,
-      roomSelection,
-      specialRequest,
-      journalNumber,
-      statusOverride,
-      assignedRoom,
-    } = req.body;
+  isAgencyBooking,
+  agencyName,
+  agentName,
+
+  firstName,
+  lastName,
+  email,
+  country,
+  phone,
+
+  checkIn,
+  checkOut,
+  roomSelection,
+  specialRequest,
+  journalNumber,
+  statusOverride,
+  assignedRoom,
+} = req.body;
+
 
     // Accept meals as array or object from request (optional)
     // - frontend may send { meals: ["breakfast","lunch"] } or { meals: { breakfast: true, lunch: true } }
@@ -1511,24 +1531,49 @@ exports.createBooking = async (req, res) => {
     // ----------------------------------------------------
     const bookingNumber = await generateBookingNumber();
 
+    // const booking = await Booking.create({
+    //   bookingNumber,
+    //   firstName,
+    //   lastName,
+    //   email,
+    //   country,
+    //   phoneNumber: phone,
+    //   checkIn: ci,
+    //   checkOut: co,
+    //   nights,                 // store nights for easy reference
+    //   rooms: roomDetails,
+    //   meals: finalMeal, // store object (not array) — safe for .breakfast/.lunch/.dinner checks
+    //   specialRequest,
+    //   totalPrice: total,
+    //   transactionNumber: journalNumber || "",
+    //   assignedRoom: assignedRoomsFinal,
+    //   status: statusOverride || "pending",
+    // });
     const booking = await Booking.create({
-      bookingNumber,
-      firstName,
-      lastName,
-      email,
-      country,
-      phoneNumber: phone,
-      checkIn: ci,
-      checkOut: co,
-      nights,                 // store nights for easy reference
-      rooms: roomDetails,
-      meals: finalMeal, // store object (not array) — safe for .breakfast/.lunch/.dinner checks
-      specialRequest,
-      totalPrice: total,
-      transactionNumber: journalNumber || "",
-      assignedRoom: assignedRoomsFinal,
-      status: statusOverride || "pending",
-    });
+  bookingNumber,
+
+  isAgencyBooking,
+  agencyName,
+  agentName,
+
+  firstName,
+  lastName,
+  email,
+  country,
+  phoneNumber: phone,
+
+  checkIn: ci,
+  checkOut: co,
+  nights,
+  rooms: roomDetails,
+  meals: finalMeal,
+  specialRequest,
+  totalPrice: total,
+  transactionNumber: journalNumber || "",
+  assignedRoom: assignedRoomsFinal,
+  status: statusOverride || "pending",
+});
+
 
     // ----------------------------------------------------
     // EMAIL / RESPONSE PREP
