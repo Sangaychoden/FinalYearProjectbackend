@@ -451,7 +451,7 @@ if (!isManual) {
           ${txnHtml}
           ${specialReqHtml}
 
-          <p style="margin-top:18px;">Warm regards,<br/><strong>Your Hotel Team</strong></p>
+          <p style="margin-top:18px;">Warm regards,<br/><strong>ThimDorji Resort</strong></p>
         </div>
       </div>
     `;
