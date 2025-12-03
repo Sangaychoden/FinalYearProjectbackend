@@ -138,9 +138,6 @@ exports.createBooking = async (req, res) => {
           .json({ message: "One or more selected rooms are already booked" });
       assignedRoomsFinal = [...manualRooms];
     }
-
-    // ----------------------------------------------------
-    // PROCESS EACH ROOM GROUP
     // ----------------------------------------------------
     // roomSelection is an array of groups (roomType + roomsRequested + occupancyType[], mealPlan, adults, childrenAges[], extraBed)
     for (const reqRoom of roomSelection) {
@@ -191,6 +188,38 @@ exports.createBooking = async (req, res) => {
 
         assignedRoomsFinal.push(...freeRooms.slice(0, roomsRequested));
       }
+// ----------------------------------------------------
+// ⭐ FINAL RACE CONDITION CHECK — prevents double booking
+// ----------------------------------------------------
+if (!isManual) {
+  const recheckOverlap = await Booking.find({
+    "rooms.roomType": roomType,
+    checkIn: { $lte: co },
+    checkOut: { $gte: ci },
+    status: { $in: ["pending", "confirmed", "guaranteed", "checked_in"] },
+  });
+
+  const recheckUsed = recheckOverlap
+    .flatMap((b) => b.assignedRoom || [])
+    .map(String);
+
+  const allowedRoomsRecheck = (roomDoc.roomNumbers || []).map(String);
+  const recheckFree = allowedRoomsRecheck.filter(
+    (r) => !recheckUsed.includes(r)
+  );
+
+  // ❗ FIXED — RETURN IMMEDIATELY WITH ERROR
+  if (recheckFree.length < roomsRequested) {
+    return res.status(400).json({
+      success: false,
+      error: "room_unavailable",
+      message: "Room just got booked by another user. Please try again.",
+    });
+  }
+
+  // if OK → assign rooms
+  assignedRoomsFinal = recheckFree.slice(0, roomsRequested);
+}
 
       // -------------------------
       // Pricing calculations (per-night)
@@ -707,7 +736,7 @@ exports.rejectBooking = async (req, res) => {
             If you have any questions or wish to modify your booking, please contact our reservations team.
           </p>
 
-          <p style="margin-top: 25px;">Best Regards,<br><strong>Hotel Reservation Team</strong></p>
+          <p style="margin-top: 25px;">Best Regards,<br><strong>ThimDorji Resort</strong></p>
         </div>
       </div>
     `;
@@ -979,7 +1008,7 @@ exports.cancelBooking = async (req, res) => {
             Please contact us if you need assistance.
           </p>
 
-          <p style="margin-top: 25px;">Best Regards,<br><strong>Hotel Reservation Team</strong></p>
+          <p style="margin-top: 25px;">Best Regards,<br><strong>ThimDorji Resort</strong></p>
         </div>
       </div>
     `;
