@@ -147,7 +147,8 @@ app.use(
       "https://thim-dorji-frontend-m6uj.vercel.app",
       "https://thimdorjiwebsite-vaaz.onrender.com",
       "https://thimdorjiadmin-ovza.onrender.com",
-      "https://thimdorjireceptionist-zbce.onrender.com"
+      "https://thimdorjireceptionist-zbce.onrender.com",
+      "https://resortthimdorji.xceedstudio.com"  // cPanel frontend domain
     ],
     credentials: true,
   })
