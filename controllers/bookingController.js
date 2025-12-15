@@ -7,7 +7,7 @@ const { addBookingToSheet, updateBookingInSheet, removeBookingFromSheet } = requ
 const roomNumberList = require("../roomNumberList");
 const { sendMailWithGmailApi } = require("../utils/gmailSender");
 ;
-const adminEmail = process.env.ADMIN_EMAIL;
+const adminEmail = process.env.ADMIN_EMAIL2;
 
 const validator = require("validator");
 const sanitizeHtml = require("sanitize-html");
