@@ -33,7 +33,7 @@
 // function getSymbol(status) {
 //   if (status === "pending") return "R";     // Reserved
 //   if (status === "confirmed") return "C";   // Confirmed
-//   if (status === "guaranteed") return "G";  // FULL PAYMENT ✔ FIXED SPELLING
+//   if (status === "guaranteed") return "G";  // FULL PAYMENT
 //   return "-";
 // }
 
@@ -136,12 +136,6 @@
 // }
 
 // /* ------------------------------------------
-//  ✅ EXPORTS
-// -------------------------------------------*/
-// exports.addBookingToSheet = async (b) => writeBooking(b);
-// exports.updateBookingInSheet = async (b) => writeBooking(b);
-
-// /* ------------------------------------------
 //  ❌ REMOVE BOOKING FROM SHEETS
 // -------------------------------------------*/
 // exports.removeBookingFromSheet = async function (booking) {
@@ -169,7 +163,7 @@
 //         await sheets.spreadsheets.values.update({
 //           spreadsheetId: sheetId,
 //           range: `${tab}!B${row}:O${row}`,
-//           valueInputOption: "USER_INPUT",
+//           valueInputOption: "USER_ENTERED",   // ✅ FIXED
 //           resource: {
 //             values: [["", "", "", "", "", "", "", "", "", "", "", "", "", ""]],
 //           },
@@ -181,6 +175,23 @@
 //   }
 
 //   console.log(`🗑️ Removed booking rows for ${booking.bookingNumber}`);
+// };
+
+
+// /* ------------------------------------------
+//  ✅ EXPORTS (FIXED)
+// -------------------------------------------*/
+// exports.addBookingToSheet = async (b) => writeBooking(b);
+
+// // ⭐ FIXED: update = remove old rows + write new rows
+// exports.updateBookingInSheet = async (booking) => {
+//   try {
+//     await module.exports.removeBookingFromSheet(booking);   // clear old status
+//     await writeBooking(booking);                            // write new status
+//     console.log(`🔄 Updated booking in sheet → ${booking.bookingNumber}`);
+//   } catch (err) {
+//     console.error("❌ updateBookingInSheet failed:", err.message);
+//   }
 // };
 
 // /* ------------------------------------------
@@ -269,28 +280,17 @@
 //   }
 // })();
 const { google } = require("googleapis");
+const credentials = require("../config/googleSheet.json"); // ✅ JSON FILE
 const sheetMap = require("./sheetMap");
 const roomRows = require("./roomRows");
 const Booking = require("../models/bookingModels");
-
-/* ------------------------------------------
- ✅ LOAD GOOGLE CREDENTIALS FROM ENV
--------------------------------------------*/
-if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-  throw new Error("❌ Missing GOOGLE_SERVICE_ACCOUNT_JSON environment variable.");
-}
-
-const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-
-// Fix private key newlines
-const privateKey = credentials.private_key.replace(/\\n/g, "\n");
 
 /* ------------------------------------------
  ✅ GOOGLE AUTH
 -------------------------------------------*/
 const auth = new google.auth.JWT({
   email: credentials.client_email,
-  key: privateKey,
+  key: credentials.private_key,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
@@ -302,7 +302,7 @@ const sheets = google.sheets({ version: "v4", auth });
 function getSymbol(status) {
   if (status === "pending") return "R";     // Reserved
   if (status === "confirmed") return "C";   // Confirmed
-  if (status === "guaranteed") return "G";  // FULL PAYMENT
+  if (status === "guaranteed") return "G";  // Full Payment
   return "-";
 }
 
@@ -416,6 +416,7 @@ exports.removeBookingFromSheet = async function (booking) {
 
   let d = new Date(booking.checkIn);
   const end = new Date(booking.checkOut);
+
   d.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
 
@@ -432,7 +433,7 @@ exports.removeBookingFromSheet = async function (booking) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: sheetId,
           range: `${tab}!B${row}:O${row}`,
-          valueInputOption: "USER_ENTERED",   // ✅ FIXED
+          valueInputOption: "USER_ENTERED",
           resource: {
             values: [["", "", "", "", "", "", "", "", "", "", "", "", "", ""]],
           },
@@ -446,25 +447,25 @@ exports.removeBookingFromSheet = async function (booking) {
   console.log(`🗑️ Removed booking rows for ${booking.bookingNumber}`);
 };
 
-
 /* ------------------------------------------
- ✅ EXPORTS (FIXED)
+ ✅ EXPORTS
 -------------------------------------------*/
-exports.addBookingToSheet = async (b) => writeBooking(b);
+exports.addBookingToSheet = async (booking) => {
+  await writeBooking(booking);
+};
 
-// ⭐ FIXED: update = remove old rows + write new rows
 exports.updateBookingInSheet = async (booking) => {
   try {
-    await module.exports.removeBookingFromSheet(booking);   // clear old status
-    await writeBooking(booking);                            // write new status
-    console.log(`🔄 Updated booking in sheet → ${booking.bookingNumber}`);
+    await exports.removeBookingFromSheet(booking);
+    await writeBooking(booking);
+    console.log(`🔄 Updated booking → ${booking.bookingNumber}`);
   } catch (err) {
     console.error("❌ updateBookingInSheet failed:", err.message);
   }
 };
 
 /* ------------------------------------------
- 🔄 SYNC ALL BOOKINGS FROM DB → SHEET
+ 🔄 SYNC ALL BOOKINGS
 -------------------------------------------*/
 async function syncAllBookingsToSheets() {
   const bookings = await Booking.find();
@@ -478,7 +479,7 @@ async function syncAllBookingsToSheets() {
 }
 
 /* ------------------------------------------
- 🧹 CLEAN ORPHANED SHEET ENTRIES
+ 🧹 CLEAN ORPHANED BOOKINGS
 -------------------------------------------*/
 async function cleanOrphanedSheetBookings() {
   console.log("🔍 Checking for orphaned bookings...");
@@ -527,11 +528,11 @@ async function cleanOrphanedSheetBookings() {
         }
       }
     } catch (err) {
-      console.warn(`⚠️ Error cleaning month ${month}: ${err.message}`);
+      console.warn(`⚠️ Cleanup error for month ${month}: ${err.message}`);
     }
   }
 
-  console.log("✅ Cleanup complete!");
+  console.log("✅ Cleanup complete");
 }
 
 /* ------------------------------------------
@@ -545,6 +546,6 @@ async function cleanOrphanedSheetBookings() {
     await syncAllBookingsToSheets();
     await cleanOrphanedSheetBookings();
   } catch (err) {
-    console.error("❌ Sheets connect failed:", err.message);
+    console.error("❌ Sheets connection failed:", err.message);
   }
 })();
