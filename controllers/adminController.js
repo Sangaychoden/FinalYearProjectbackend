@@ -326,10 +326,106 @@ const otpRequestTracker = {}; // { email: { count: n, lockUntil: timestamp } }
 const OTP_REQUEST_LIMIT = 5;         // Max 5 OTP requests
 const OTP_LOCK_TIME = 10 * 60 * 1000; // 10 min lock
 
+// exports.forgotPassword = async (req, res) => {
+//   try {
+//     let { email } = req.body;
+
+//     if (!email || email.trim() === "") {
+//       return res.status(400).json({ message: "Invalid request" });
+//     }
+
+//     email = email.trim().toLowerCase();
+//     const now = Date.now();
+
+//     // Initialize tracker for email
+//     if (!otpRequestTracker[email]) {
+//       otpRequestTracker[email] = { count: 0, lockUntil: 0 };
+//     }
+
+//     // Check lockout
+//     if (now < otpRequestTracker[email].lockUntil) {
+//       return res.status(429).json({
+//         message: "Too many OTP requests. Try again later."
+//       });
+//     }
+
+//     // Look up admin
+//     const admin = await Admin.findOne({ email });
+
+//     // Generic message (do not reveal if email exists)
+//     const genericResponse = {
+//       message: "If this email is registered, an OTP has been sent."
+//     };
+
+//     // If admin does not exist, still respond generic
+//     if (!admin) {
+//       return res.status(200).json(genericResponse);
+//     }
+
+//     // Prevent spamming OTP (admin already has a valid OTP)
+//     if (admin.resetOTPExpiry && admin.resetOTPExpiry > new Date()) {
+//       return res.status(200).json(genericResponse);
+//     }
+
+//     // Track OTP request count
+//     otpRequestTracker[email].count++;
+
+//     if (otpRequestTracker[email].count >= OTP_REQUEST_LIMIT) {
+//       otpRequestTracker[email].lockUntil = now + OTP_LOCK_TIME;
+//       return res.status(429).json({
+//         message: "Too many OTP requests. Try again later."
+//       });
+//     }
+
+//     // Generate OTP
+//     const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+//     const expiry = new Date(Date.now() + 5 * 60 * 1000);
+
+//     // Hash OTP before saving (do NOT store plain OTP)
+//     const hashedOtp = await bcrypt.hash(rawOtp, 10);
+
+//     admin.resetOTP = hashedOtp;
+//     admin.resetOTPExpiry = expiry;
+//     await admin.save();
+
+//     // Email HTML content
+//     const htmlContent = `
+//       <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
+//         <div style="max-width: 500px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
+//           <h2 style="color: #006600;">Password Reset OTP</h2>
+//           <p>Dear <strong>${admin.username}</strong>,</p>
+//           <p>You requested to reset your password. Use the OTP below:</p>
+
+//           <h1 style="color: #333; text-align:center; letter-spacing: 5px;">
+//             ${rawOtp}
+//           </h1>
+
+//           <p>This OTP will expire in <strong>5 minutes</strong>.</p>
+
+//           <p style="margin-top: 20px;">
+//             Best Regards,<br>
+//             <strong>Hotel Management Team</strong>
+//           </p>
+//         </div>
+//       </div>
+//     `;
+
+//     // Send email
+//     await sendMailWithGmailApi(admin.email, "Admin Password Reset OTP", htmlContent);
+
+//     return res.status(200).json(genericResponse);
+
+//   } catch (err) {
+//     console.error("Forgot Password Error");
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// };
+
 exports.forgotPassword = async (req, res) => {
   try {
     let { email } = req.body;
 
+    // Validate email
     if (!email || email.trim() === "") {
       return res.status(400).json({ message: "Invalid request" });
     }
@@ -337,34 +433,36 @@ exports.forgotPassword = async (req, res) => {
     email = email.trim().toLowerCase();
     const now = Date.now();
 
-    // Initialize tracker for email
+    // Initialize OTP request tracker
     if (!otpRequestTracker[email]) {
       otpRequestTracker[email] = { count: 0, lockUntil: 0 };
     }
 
-    // Check lockout
+    // Check lockout time
     if (now < otpRequestTracker[email].lockUntil) {
       return res.status(429).json({
         message: "Too many OTP requests. Try again later."
       });
     }
 
-    // Look up admin
+    // Find admin
     const admin = await Admin.findOne({ email });
 
-    // Generic message (do not reveal if email exists)
+    // Generic response (security)
     const genericResponse = {
       message: "If this email is registered, an OTP has been sent."
     };
 
-    // If admin does not exist, still respond generic
+    // If admin not found
     if (!admin) {
       return res.status(200).json(genericResponse);
     }
 
-    // Prevent spamming OTP (admin already has a valid OTP)
+    // 🚫 Block resend ONLY if OTP is still valid
     if (admin.resetOTPExpiry && admin.resetOTPExpiry > new Date()) {
-      return res.status(200).json(genericResponse);
+      return res.status(400).json({
+        message: "OTP already sent. Please wait 5 minutes."
+      });
     }
 
     // Track OTP request count
@@ -372,6 +470,7 @@ exports.forgotPassword = async (req, res) => {
 
     if (otpRequestTracker[email].count >= OTP_REQUEST_LIMIT) {
       otpRequestTracker[email].lockUntil = now + OTP_LOCK_TIME;
+      otpRequestTracker[email].count = 0; // reset count after lock
       return res.status(429).json({
         message: "Too many OTP requests. Try again later."
       });
@@ -379,16 +478,17 @@ exports.forgotPassword = async (req, res) => {
 
     // Generate OTP
     const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 5 * 60 * 1000);
+    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    // Hash OTP before saving (do NOT store plain OTP)
+    // Hash OTP
     const hashedOtp = await bcrypt.hash(rawOtp, 10);
 
+    // Save OTP
     admin.resetOTP = hashedOtp;
     admin.resetOTPExpiry = expiry;
     await admin.save();
 
-    // Email HTML content
+    // Email HTML
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; padding: 15px; background-color: #f9f9f9;">
         <div style="max-width: 500px; margin: auto; background: white; border-radius: 10px; padding: 20px; border: 1px solid #ddd;">
@@ -410,39 +510,30 @@ exports.forgotPassword = async (req, res) => {
       </div>
     `;
 
-    // Send email
-    await sendMailWithGmailApi(admin.email, "Admin Password Reset OTP", htmlContent);
+    // Send email (with error handling)
+    try {
+      await sendMailWithGmailApi(
+        admin.email,
+        "Admin Password Reset OTP",
+        htmlContent
+      );
+    } catch (emailErr) {
+      console.error("EMAIL SEND ERROR:", emailErr);
+      return res.status(500).json({
+        message: "Failed to send OTP email. Please try again."
+      });
+    }
 
     return res.status(200).json(genericResponse);
 
   } catch (err) {
-    console.error("Forgot Password Error");
-    res.status(500).json({ message: "Server error. Please try again later." });
+    console.error("Forgot Password Error:", err);
+    return res.status(500).json({
+      message: "Server error. Please try again later."
+    });
   }
 };
 
-
-// // ======================================================
-// // ✅ VERIFY OTP
-// // ======================================================
-// exports.verifyOTP = async (req, res) => {
-//   try {
-//     const { email, otp } = req.body;
-//     const admin = await Admin.findOne({ email });
-
-//     if (!admin) return res.status(404).json({ message: "Admin not found" });
-//     if (!admin.resetOTP || admin.resetOTPExpiry < new Date())
-//       return res.status(400).json({ message: "OTP expired or not generated" });
-//     if (admin.resetOTP !== otp)
-//       return res.status(400).json({ message: "Invalid OTP" });
-
-//     admin.isOTPVerified = true;
-//     await admin.save();
-//     res.status(200).json({ message: "OTP verified successfully" });
-//   } catch (err) {
-//     res.status(500).json({ message: "Server error", error: err.message });
-//   }
-// };
 exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
