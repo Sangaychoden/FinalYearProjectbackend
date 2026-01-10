@@ -148,7 +148,9 @@ app.use(
       "https://thimdorjiwebsite-vaaz.onrender.com",
       "https://thimdorjiadmin-ovza.onrender.com",
       "https://thimdorjireceptionist-zbce.onrender.com",
-      "https://resortthimdorji.xceedstudio.com"  // cPanel frontend domain
+      "https://resortthimdorji.xceedstudio.com",  // Main site subdomain
+      "https://adminresort.xceedstudio.com",      // Admin app subdomain
+      "https://resortreception.xceedstudio.com"   // Receptionist app subdomain
     ],
     credentials: true,
   })
